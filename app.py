@@ -248,23 +248,29 @@ if chart_type == "Línea (tendencia)":
         agg_func = st.selectbox("Agregación", ["mean", "sum", "median", "count"], index=0)
 
         # Agregar por fecha (+ categoría si aplica)
-        group_cols = [x_col]
-        if color_col != "(ninguno)":
-            group_cols.append(color_col)
+        group_cols = [x_col] + ([] if color_col == "(ninguno)" else [color_col])
 
         df_line = (
             df.dropna(subset=[x_col, y_col])
               .groupby(group_cols, as_index=False)
               .agg({y_col: agg_func})
+              .sort_values(by=[x_col] + ([color_col] if color_col != "(ninguno)" else []))
         )
 
-        chart = alt.Chart(df_line).mark_line(point=True).encode(
-            x=alt.X(f"{x_col}:T", title=str(x_col)),
-            y=alt.Y(f"{y_col}:Q", title=f"{agg_func}({y_col})"),
-            color=None if color_col == "(ninguno)" else alt.Color(f"{color_col}:N", title=str(color_col)),
-            tooltip=group_cols + [y_col]
-        ).properties(height=420)
-        st.altair_chart(chart, use_container_width=True)
+        if df_line.empty:
+            st.info("No hay datos suficientes para la línea con la selección actual.")
+        else:
+            enc = {
+                "x": alt.X(f"{x_col}:T", title=str(x_col)),
+                "y": alt.Y(f"{y_col}:Q", title=f"{agg_func}({y_col})"),
+                "tooltip": group_cols + [y_col]
+            }
+            if color_col != "(ninguno)":
+                enc["color"] = alt.Color(f"{color_col}:N", title=str(color_col))
+
+            chart = alt.Chart(df_line).mark_line(point=True).encode(**enc).properties(height=420)
+            st.altair_chart(chart, use_container_width=True)
+
 
 # ----------------- Barras -----------------
 elif chart_type == "Barras":
